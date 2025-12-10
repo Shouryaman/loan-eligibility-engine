@@ -1,0 +1,8 @@
+node_modules/
+n8n/
+backend/database.sqlite
+*.sqlite
+*.db
+__pycache__/
+serverless/.serverless
+.env

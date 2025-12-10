@@ -1,0 +1,68 @@
+service: loan-eligibility-engine
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ap-south-1
+
+  environment:
+    PG_HOST: ${env:PG_HOST}
+    PG_PORT: 5432
+    PG_DB: loans
+    PG_USER: postgres
+    PG_PASS: postgres
+    BUCKET_NAME: ${env:BUCKET_NAME}
+    N8N_WORKFLOW_B_URL: ${env:N8N_WORKFLOW_B_URL}
+
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - "s3:GetObject"
+            - "s3:PutObject"
+          Resource: "arn:aws:s3:::${env:BUCKET_NAME}/*"
+
+        - Effect: "Allow"
+          Action:
+            - "s3:ListBucket"
+          Resource: "arn:aws:s3:::${env:BUCKET_NAME}"
+
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "*"
+
+functions:
+  ingest:
+    handler: src/handler_ingest.lambda_handler
+    package:
+      include:
+        - src/**
+    events:
+      - http:
+          path: upload
+          method: post
+          cors: true
+
+  process_csv:
+    handler: src/handler_process_csv.lambda_handler
+    package:
+      include:
+        - src/**
+    events:
+      - s3:
+          bucket: ${env:BUCKET_NAME}
+          event: s3:ObjectCreated:*
+          existing: true
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: true
